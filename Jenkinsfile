@@ -1,0 +1,62 @@
+pipeline {
+    agent any
+
+    environment {
+        IMAGE_NAME = "hello-react"
+        CONTAINER_NAME = "hello-react-container"
+        PORT = "8081"
+    }
+
+    stages {
+        stage("Clone Code") {
+            steps {
+                echo "🔁 Cloning the code from GitHub..."
+                git branch: "main", url: "https://github.com/Abhishek-2502/task2.git"
+            }
+        }
+
+        stage("Clean Old Containers & Images") {
+            steps {
+                echo "🧹 Removing old containers and images..."
+                bat '''
+                echo Listing containers...
+                docker ps -a
+
+                echo Removing containers...
+                for /f "tokens=*" %%i in ('docker ps -aq') do docker rm -f %%i
+
+                echo Removing images...
+                for /f "tokens=*" %%i in ('docker images -q') do docker rmi -f %%i
+                '''
+            }
+        }
+
+        stage("Build Docker Image") {
+            steps {
+                echo "⚙️ Building Docker image..."
+                bat '''
+                cd reactapp
+                docker build -t %IMAGE_NAME%:latest .
+                '''
+            }
+        }
+
+        stage("Deploy Container") {
+            steps {
+                echo "🚀 Deploying container..."
+                bat '''
+                docker run -d --name %CONTAINER_NAME% -p %PORT%:8081 %IMAGE_NAME%:latest
+                '''
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "✅ Deployment successful! Application is running at http://localhost:${PORT}"
+        }
+        failure {
+            echo "❌ Deployment failed! Check Jenkins logs for details."
+        }
+    }
+}
